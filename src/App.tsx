@@ -19,7 +19,9 @@ const BASE = 'https://fapi.binance.com'
 
 async function getPairs(): Promise<Pair[]> {
   const resp = await fetch(`${BASE}/fapi/v1/exchangeInfo`)
+  if (!resp.ok) return []
   const data = await resp.json()
+  if (!data.symbols) return []
   return data.symbols
     .filter((s: any) => s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT')
     .map((s: any) => ({ symbol: s.symbol, baseAsset: s.baseAsset }))
@@ -27,7 +29,9 @@ async function getPairs(): Promise<Pair[]> {
 
 async function getAllTickers(): Promise<Record<string, TickerData>> {
   const resp = await fetch(`${BASE}/fapi/v1/ticker/24hr`)
+  if (!resp.ok) return {}
   const raw = await resp.json()
+  if (!Array.isArray(raw)) return {}
   const out: Record<string, TickerData> = {}
   for (const t of raw) {
     out[t.symbol] = {
@@ -44,7 +48,9 @@ async function getAllTickers(): Promise<Record<string, TickerData>> {
 async function getTicker(symbol: string): Promise<TickerData | null> {
   try {
     const resp = await fetch(`${BASE}/fapi/v1/ticker/24hr?symbol=${symbol}`)
+    if (!resp.ok) return null
     const t = await resp.json()
+    if (!t || t.code === -1003) return null
     return {
       price: parseFloat(t.lastPrice),
       priceChangePercent: parseFloat(t.priceChangePercent),
@@ -198,15 +204,15 @@ export default function App() {
           {t ? (
             <>
               <div className="text-center mb-6">
-                <div className={`text-6xl font-mono font-bold ${pos ? 'text-green-400' : 'text-red-400'}`}>${fmt(t.price)}</div>
+                <div className={`text-6xl font-mono font-bold ${pos ? 'text-green-400' : 'text-red-400'}`}>${t ? fmt(t.price) : '—'}</div>
                 <div className={`text-2xl font-mono mt-2 ${pos ? 'text-green-400' : 'text-red-400'}`}>
-                  {pos ? '+' : ''}{t.priceChangePercent.toFixed(2)}%
+                  {t ? `${pos ? '+' : ''}${t.priceChangePercent.toFixed(2)}%` : '—'}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 text-center">
-                <div><div className="text-gray-500 text-xs uppercase mb-1">24h High</div><div className="text-white font-mono">${fmt(t.high)}</div></div>
-                <div><div className="text-gray-500 text-xs uppercase mb-1">24h Low</div><div className="text-white font-mono">${fmt(t.low)}</div></div>
-                <div><div className="text-gray-500 text-xs uppercase mb-1">Volume</div><div className="text-white font-mono">{fmtVol(t.volume)}</div></div>
+                <div><div className="text-gray-500 text-xs uppercase mb-1">24h High</div><div className="text-white font-mono">{t ? `$${fmt(t.high)}` : '—'}</div></div>
+                <div><div className="text-gray-500 text-xs uppercase mb-1">24h Low</div><div className="text-white font-mono">{t ? `$${fmt(t.low)}` : '—'}</div></div>
+                <div><div className="text-gray-500 text-xs uppercase mb-1">Volume</div><div className="text-white font-mono">{t ? fmtVol(t.volume) : '—'}</div></div>
               </div>
             </>
           ) : (
